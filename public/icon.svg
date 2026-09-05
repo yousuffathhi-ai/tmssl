@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="primaryGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1e3a8a" />
+      <stop offset="100%" stop-color="#0f172a" />
+    </linearGradient>
+    <linearGradient id="goldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#f59e0b" />
+      <stop offset="100%" stop-color="#d97706" />
+    </linearGradient>
+    <linearGradient id="maroonGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#881337" />
+      <stop offset="100%" stop-color="#4c0519" />
+    </linearGradient>
+  </defs>
+
+  <!-- Background rounded rectangle with safe zone -->
+  <rect width="512" height="512" rx="108" fill="url(#primaryGrad)" />
+  
+  <!-- Subtle decorative gold ring border -->
+  <rect x="24" y="24" width="464" height="464" rx="88" fill="none" stroke="url(#goldGrad)" stroke-width="4" stroke-opacity="0.4" />
+
+  <!-- Shield Base -->
+  <path d="M 256 90 L 370 140 C 370 260 256 370 256 370 C 256 370 142 260 142 140 Z" fill="url(#maroonGrad)" stroke="url(#goldGrad)" stroke-width="6" />
+
+  <!-- Open Book inside shield -->
+  <!-- Left Page -->
+  <path d="M 256 260 C 220 240 180 245 170 250 L 170 305 C 185 300 220 295 256 312 Z" fill="#ffffff" fill-opacity="0.95" />
+  <!-- Right Page -->
+  <path d="M 256 260 C 292 240 332 245 342 250 L 342 305 C 327 300 292 295 256 312 Z" fill="#f8fafc" fill-opacity="0.95" />
+
+  <!-- Sun of Knowledge (Surya) / Star burst above book -->
+  <circle cx="256" cy="180" r="28" fill="url(#goldGrad)" />
+  <!-- Rays of Knowledge -->
+  <path d="M 256 138 L 256 148 M 256 212 L 256 222 M 214 180 L 224 180 M 288 180 L 298 180 M 226 150 L 234 158 M 278 202 L 286 210 M 226 210 L 234 202 M 278 158 L 286 150" stroke="#fef08a" stroke-width="4" stroke-linecap="round" />
+
+  <!-- Stylized Lotus Petal base -->
+  <path d="M 230 320 Q 256 335 282 320 Q 256 345 230 320 Z" fill="url(#goldGrad)" />
+
+  <!-- Brand Typography -->
+  <text x="256" y="422" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-weight="900" font-size="44" fill="#ffffff" letter-spacing="4">TMS SL</text>
+  <text x="256" y="454" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-weight="600" font-size="16" fill="#f59e0b" letter-spacing="2">TEACHER MANAGEMENT SYSTEM</text>
+</svg>

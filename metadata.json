@@ -1,0 +1,6 @@
+{
+  "name": "TMS SL (Teacher Management System Sri Lanka)",
+  "description": "A modern Progressive Web Application for Sri Lankan school teachers and administrators featuring intelligent timetable generation, AI lesson planning, student marks analytics, leave tracking, and teacher community hub.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
