@@ -12,6 +12,8 @@ import {
   Building,
   GraduationCap,
   Zap,
+  Lock,
+  ShieldCheck,
 } from 'lucide-react';
 import { exportTimetableToExcel, exportTimetableToPDF } from '../../utils/exportUtils';
 
@@ -27,6 +29,7 @@ export const MasterTab: React.FC = () => {
     generateAndSaveTimetable,
     conflicts,
     isGenerating,
+    canManageTimetables,
   } = useApp();
 
   const dynamicSchoolName = currentUser?.schoolName?.trim() || schoolSettings.school_name?.trim() || '';
@@ -115,6 +118,21 @@ export const MasterTab: React.FC = () => {
 
   return (
     <div className="space-y-5">
+      {/* RBAC Teacher Notice Banner */}
+      {!canManageTimetables && (
+        <div className="p-3.5 rounded-xl bg-blue-50/80 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-900/60 flex items-center justify-between gap-3 text-xs text-blue-900 dark:text-blue-200">
+          <div className="flex items-center gap-2.5">
+            <Lock className="w-4 h-4 text-blue-600 dark:text-blue-400 shrink-0" />
+            <span>
+              <strong>Read-Only Access:</strong> You are viewing the school Master Timetable as a <strong>Teacher</strong>. Generating, editing, and rule modifications are restricted to the School Principal and Timetable Creator.
+            </span>
+          </div>
+          <span className="hidden md:inline-block px-2 py-0.5 rounded-md bg-blue-100 dark:bg-blue-900/60 text-[10px] font-bold text-blue-700 dark:text-blue-300 shrink-0">
+            RBAC Enforced
+          </span>
+        </div>
+      )}
+
       {/* Top Filter & Actions Header */}
       <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-4 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div className="flex flex-wrap items-center gap-3">
@@ -143,14 +161,24 @@ export const MasterTab: React.FC = () => {
 
         {/* Action Buttons */}
         <div className="flex items-center gap-2 w-full sm:w-auto">
-          <button
-            onClick={handleGenerate}
-            disabled={isGenerating || subjectRules.length === 0}
-            className="flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 px-3.5 py-2 text-xs font-bold rounded-lg bg-blue-600 hover:bg-blue-700 text-white transition disabled:opacity-50 shadow-xs cursor-pointer"
-          >
-            <Sparkles className="w-3.5 h-3.5" />
-            <span>{isGenerating ? 'Generating...' : '✨ Generate'}</span>
-          </button>
+          {canManageTimetables ? (
+            <button
+              onClick={handleGenerate}
+              disabled={isGenerating || subjectRules.length === 0}
+              className="flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 px-3.5 py-2 text-xs font-bold rounded-lg bg-blue-600 hover:bg-blue-700 text-white transition disabled:opacity-50 shadow-xs cursor-pointer"
+            >
+              <Sparkles className="w-3.5 h-3.5" />
+              <span>{isGenerating ? 'Generating...' : '✨ Generate'}</span>
+            </button>
+          ) : (
+            <div
+              title="Only ADMIN or TIMETABLE_CREATOR roles can regenerate timetables"
+              className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-700 select-none"
+            >
+              <Lock className="w-3.5 h-3.5 text-amber-500" />
+              <span>Read-Only</span>
+            </div>
+          )}
 
           <button
             onClick={handleExportExcel}

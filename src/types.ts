@@ -1,9 +1,24 @@
-export type UserRole = 'admin' | 'teacher' | 'guest';
+export type UserRole = 'admin' | 'timetable_creator' | 'teacher' | 'guest';
+
+// Role & Permission Predicates
+export function isTimetableAdmin(role?: string): boolean {
+  if (!role) return false;
+  const r = role.toLowerCase().trim();
+  return r === 'admin' || r === 'timetable_creator';
+}
+
+export function normalizeSchoolTenantId(schoolName?: string, userId?: string): string {
+  if (!schoolName || !schoolName.trim()) {
+    return userId ? `school_usr_${userId}` : 'school_default';
+  }
+  return `school_${schoolName.trim().toLowerCase().replace(/[^a-z0-9]/g, '_').substring(0, 40)}`;
+}
 
 // --- Supabase Data Tables Models (TMS SL) ---
 export interface SchoolSettings {
   id?: string;
   user_id: string;
+  school_id?: string;
   school_name: string;
   census_no?: string;
   zone?: string;
@@ -14,6 +29,7 @@ export interface SchoolSettings {
 export interface BellSchedule {
   id?: string;
   user_id: string;
+  school_id?: string;
   first_period_start: string; // default "07:45"
   period_length_mins: number; // default 40
   periods_per_day: number; // default 8
@@ -25,6 +41,9 @@ export interface BellSchedule {
 export interface ClassSection {
   id: string;
   user_id: string;
+  school_id?: string;
+  class_teacher_id?: string;
+  class_teacher_name?: string;
   name: string; // e.g. "Grade 6 - A"
   room: string; // e.g. "Room 12"
   grade?: number;
@@ -34,6 +53,7 @@ export interface ClassSection {
 export interface TeacherRecord {
   id: string;
   user_id: string;
+  school_id?: string;
   name: string;
   subjects: string; // comma separated
   max_periods_per_day: number; // default 6
@@ -44,6 +64,7 @@ export interface TeacherRecord {
 export interface SubjectRule {
   id: string;
   user_id: string;
+  school_id?: string;
   class_id: string;
   teacher_id: string;
   subject: string;
@@ -55,6 +76,7 @@ export interface SubjectRule {
 export interface GeneratedTimetableRecord {
   id?: string;
   user_id: string;
+  school_id?: string;
   slots: TimetableSlot[];
   conflicts?: TimetableConflict[];
   created_at?: string;
@@ -275,6 +297,9 @@ export type DiscussionCategory = 'General' | 'Subject Discussions' | 'Question P
 export interface CommunityPostRecord {
   id: string;
   user_id: string;
+  school_id?: string;
+  subject?: string;
+  is_public?: boolean;
   author_name: string;
   author_role?: string;
   school_name: string;
@@ -293,6 +318,9 @@ export type ResourceTypeCategory = 'Worksheets' | 'Question Papers' | 'Notes & P
 export interface CommunityResourceRecord {
   id: string;
   user_id: string;
+  school_id?: string;
+  subject?: string;
+  is_public?: boolean;
   author_name: string;
   school_name: string;
   title: string;
@@ -307,6 +335,8 @@ export type AnnouncementCategory = 'Circular' | 'Meeting' | 'Policy' | 'Event';
 
 export interface AnnouncementRecord {
   id: string;
+  school_id?: string;
+  is_public?: boolean;
   title: string;
   category: AnnouncementCategory;
   content: string;
@@ -314,6 +344,22 @@ export interface AnnouncementRecord {
   attachment_name?: string;
   date: string;
   issuer?: string;
+}
+
+export function isClassTeacher(
+  user: UserProfile | null,
+  cls?: { name?: string; classTeacher?: string; class_teacher_name?: string; class_teacher_id?: string; id?: string } | null
+): boolean {
+  if (!user || !cls) return false;
+  if (cls.class_teacher_id && cls.class_teacher_id === user.id) return true;
+  if (user.assignedClass && cls.name && user.assignedClass.trim().toLowerCase() === cls.name.trim().toLowerCase()) {
+    return true;
+  }
+  const teacherName = cls.class_teacher_name || cls.classTeacher;
+  if (teacherName && user.name && teacherName.trim().toLowerCase() === user.name.trim().toLowerCase()) {
+    return true;
+  }
+  return false;
 }
 
 export interface TeacherConnectionRecord {

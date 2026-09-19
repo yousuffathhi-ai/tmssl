@@ -19,6 +19,8 @@ import {
   TeacherRecord,
   SubjectRule,
   TimetableConflict,
+  normalizeSchoolTenantId,
+  isTimetableAdmin,
 } from '../types';
 import { generateTimetableFromRules } from '../utils/timetableGenerator';
 import { supabase, isSupabaseConfigured, localDb, fetchProfileFromDb, upsertProfileToDb } from '../lib/supabase';
@@ -34,6 +36,14 @@ interface AppContextType {
   updateProfile: (data: Partial<UserProfile>) => void;
   updateUserProfile: (data: Partial<UserProfile>) => void;
   switchRole: (newRole: UserRole) => void;
+
+  // RBAC & Multi-Tenant State
+  tenantSchoolId: string;
+  canManageTimetables: boolean;
+  canEditTimetable: boolean;
+  canGenerateTimetable: boolean;
+  isClassTeacherRole: boolean;
+  assignedClassName: string;
 
   // --- TMS SL Supabase Database Tables ---
   schoolSettings: SchoolSettings;
@@ -157,6 +167,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   });
 
   const userId = currentUser?.id || 'usr_guest';
+
+  // Multi-Tenant School & RBAC Identity
+  const tenantSchoolId = normalizeSchoolTenantId(currentUser?.schoolName, currentUser?.id);
+  const canManageTimetables = isTimetableAdmin(currentUser?.role);
+  const canEditTimetable = canManageTimetables;
+  const canGenerateTimetable = canManageTimetables;
+  const isClassTeacherRole = Boolean(currentUser?.assignedClass?.trim());
+  const assignedClassName = currentUser?.assignedClass?.trim() || '';
 
   // --- TMS SL Supabase Database Tables ---
   // 1. School Settings
@@ -312,17 +330,95 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   });
 
-  // Save to localStorage whenever state changes
+  // Load tenant-isolated data whenever tenantSchoolId changes
+  useEffect(() => {
+    if (!tenantSchoolId) return;
+
+    // 1. School Settings
+    const tenantSettingsKey = `tmssl_school_settings_${tenantSchoolId}`;
+    const savedSettings = localStorage.getItem(tenantSettingsKey);
+    if (savedSettings) {
+      try {
+        setSchoolSettings(JSON.parse(savedSettings));
+      } catch {}
+    } else if (currentUser?.schoolName) {
+      const newSettings: SchoolSettings = {
+        ...DEFAULT_SCHOOL_SETTINGS,
+        user_id: currentUser.id,
+        school_id: tenantSchoolId,
+        school_name: currentUser.schoolName,
+        zone: currentUser.district || '',
+      };
+      setSchoolSettings(newSettings);
+      localStorage.setItem(tenantSettingsKey, JSON.stringify(newSettings));
+    }
+
+    // 2. Bell Schedule
+    const tenantBellKey = `tmssl_bell_schedule_${tenantSchoolId}`;
+    const savedBell = localStorage.getItem(tenantBellKey);
+    if (savedBell) {
+      try {
+        setBellSchedule(JSON.parse(savedBell));
+      } catch {}
+    }
+
+    // 3. Classes Sections
+    const tenantClassesKey = `tmssl_classes_sections_${tenantSchoolId}`;
+    const savedClasses = localStorage.getItem(tenantClassesKey);
+    if (savedClasses) {
+      try {
+        setClassesSections(JSON.parse(savedClasses));
+      } catch {}
+    }
+
+    // 4. Teachers List
+    const tenantTeachersKey = `tmssl_teachers_records_${tenantSchoolId}`;
+    const savedTeachers = localStorage.getItem(tenantTeachersKey);
+    if (savedTeachers) {
+      try {
+        setTeachersList(JSON.parse(savedTeachers));
+      } catch {}
+    }
+
+    // 5. Subject Rules
+    const tenantRulesKey = `tmssl_subject_rules_${tenantSchoolId}`;
+    const savedRules = localStorage.getItem(tenantRulesKey);
+    if (savedRules) {
+      try {
+        setSubjectRules(JSON.parse(savedRules));
+      } catch {}
+    }
+
+    // 6. Timetable Slots
+    const tenantTimetableKey = `tmssl_timetable_${tenantSchoolId}`;
+    const savedTimetable = localStorage.getItem(tenantTimetableKey);
+    if (savedTimetable) {
+      try {
+        setTimetableSlots(JSON.parse(savedTimetable));
+      } catch {}
+    }
+  }, [tenantSchoolId]);
+
+  // Save to localStorage whenever state changes (both generic and tenant-partitioned)
   useEffect(() => {
     localStorage.setItem('tmssl_school_settings', JSON.stringify(schoolSettings));
-  }, [schoolSettings]);
+    if (tenantSchoolId) {
+      localStorage.setItem(`tmssl_school_settings_${tenantSchoolId}`, JSON.stringify(schoolSettings));
+    }
+  }, [schoolSettings, tenantSchoolId]);
 
   useEffect(() => {
     localStorage.setItem('tmssl_bell_schedule', JSON.stringify(bellSchedule));
-  }, [bellSchedule]);
+    if (tenantSchoolId) {
+      localStorage.setItem(`tmssl_bell_schedule_${tenantSchoolId}`, JSON.stringify(bellSchedule));
+    }
+  }, [bellSchedule, tenantSchoolId]);
 
   useEffect(() => {
     localStorage.setItem('tmssl_classes_sections', JSON.stringify(classesSections));
+    if (tenantSchoolId) {
+      localStorage.setItem(`tmssl_classes_sections_${tenantSchoolId}`, JSON.stringify(classesSections));
+    }
     // Synchronize legacy `classes`
     const mapped: SchoolClass[] = classesSections.map(cs => ({
       id: cs.id,
@@ -333,10 +429,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }));
     setClasses(mapped);
     localStorage.setItem('tmssl_classes', JSON.stringify(mapped));
-  }, [classesSections]);
+  }, [classesSections, tenantSchoolId]);
 
   useEffect(() => {
     localStorage.setItem('tmssl_teachers_records', JSON.stringify(teachersList));
+    if (tenantSchoolId) {
+      localStorage.setItem(`tmssl_teachers_records_${tenantSchoolId}`, JSON.stringify(teachersList));
+    }
     // Synchronize legacy `teachers`
     const mapped: Teacher[] = teachersList.map(t => ({
       id: t.id,
@@ -350,10 +449,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }));
     setTeachers(mapped);
     localStorage.setItem('tmssl_teachers', JSON.stringify(mapped));
-  }, [teachersList]);
+  }, [teachersList, tenantSchoolId]);
 
   useEffect(() => {
     localStorage.setItem('tmssl_subject_rules', JSON.stringify(subjectRules));
+    if (tenantSchoolId) {
+      localStorage.setItem(`tmssl_subject_rules_${tenantSchoolId}`, JSON.stringify(subjectRules));
+    }
     // Synchronize legacy `allocations`
     const mapped: SubjectAllocation[] = subjectRules.map(sr => ({
       id: sr.id,
@@ -365,11 +467,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }));
     setAllocations(mapped);
     localStorage.setItem('tmssl_allocations', JSON.stringify(mapped));
-  }, [subjectRules]);
+  }, [subjectRules, tenantSchoolId]);
 
   useEffect(() => {
     localStorage.setItem('tmssl_timetable', JSON.stringify(timetableSlots));
-  }, [timetableSlots]);
+    if (tenantSchoolId) {
+      localStorage.setItem(`tmssl_timetable_${tenantSchoolId}`, JSON.stringify(timetableSlots));
+    }
+  }, [timetableSlots, tenantSchoolId]);
 
   useEffect(() => {
     localStorage.setItem('tmssl_substitutions', JSON.stringify(substitutions));
@@ -651,6 +756,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   // --- 1. School Settings Operations ---
   const saveSchoolSettings = (newSettings: Partial<SchoolSettings>) => {
+    if (!canManageTimetables) {
+      console.warn('Access Denied: Only ADMIN or TIMETABLE_CREATOR can modify School Settings.');
+      return;
+    }
     const updated = { ...schoolSettings, ...newSettings };
     setSchoolSettings(updated);
     if (currentUser && newSettings.school_name !== undefined) {
@@ -660,12 +769,20 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   // --- 2. Bell Schedule Operations ---
   const saveBellSchedule = (newSchedule: Partial<BellSchedule>) => {
+    if (!canManageTimetables) {
+      console.warn('Access Denied: Only ADMIN or TIMETABLE_CREATOR can modify Bell Schedule.');
+      return;
+    }
     const updated = { ...bellSchedule, ...newSchedule };
     setBellSchedule(updated);
   };
 
   // --- 3. Classes & Sections Operations ---
   const addClassSection = (name: string, room: string) => {
+    if (!canManageTimetables) {
+      console.warn('Access Denied: Only ADMIN or TIMETABLE_CREATOR can add Classes.');
+      return { id: '', user_id: userId, name, room };
+    }
     const newClass: ClassSection = {
       id: 'cls_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6),
       user_id: userId,
@@ -678,6 +795,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const deleteClassSection = (id: string) => {
+    if (!canManageTimetables) {
+      console.warn('Access Denied: Only ADMIN or TIMETABLE_CREATOR can delete Classes.');
+      return;
+    }
     setClassesSections(prev => prev.filter(c => c.id !== id));
     setSubjectRules(prev => prev.filter(r => r.class_id !== id));
     setTimetableSlots(prev => prev.filter(s => s.classId !== id));
@@ -685,6 +806,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   // --- 4. Teachers Operations ---
   const addTeacherRecord = (name: string, subjects: string, maxPeriodsPerDay: number, offDays: string) => {
+    if (!canManageTimetables) {
+      console.warn('Access Denied: Only ADMIN or TIMETABLE_CREATOR can add Teachers.');
+      return { id: '', user_id: userId, name, subjects, max_periods_per_day: maxPeriodsPerDay, off_days: offDays };
+    }
     const newTeacher: TeacherRecord = {
       id: 'tch_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6),
       user_id: userId,
@@ -699,6 +824,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const deleteTeacherRecord = (id: string) => {
+    if (!canManageTimetables) {
+      console.warn('Access Denied: Only ADMIN or TIMETABLE_CREATOR can delete Teachers.');
+      return;
+    }
     setTeachersList(prev => prev.filter(t => t.id !== id));
     setSubjectRules(prev => prev.filter(r => r.teacher_id !== id));
     setTimetableSlots(prev => prev.filter(s => s.teacherId !== id));
@@ -712,6 +841,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     periodsPerWeek: number,
     needsDoublePeriod: boolean
   ) => {
+    if (!canManageTimetables) {
+      console.warn('Access Denied: Only ADMIN or TIMETABLE_CREATOR can add Subject Rules.');
+      return { id: '', user_id: userId, class_id: classId, teacher_id: teacherId, subject, periods_per_week: periodsPerWeek, needs_double_period: needsDoublePeriod };
+    }
     const newRule: SubjectRule = {
       id: 'rul_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6),
       user_id: userId,
@@ -727,11 +860,24 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const deleteSubjectRule = (id: string) => {
+    if (!canManageTimetables) {
+      console.warn('Access Denied: Only ADMIN or TIMETABLE_CREATOR can delete Subject Rules.');
+      return;
+    }
     setSubjectRules(prev => prev.filter(r => r.id !== id));
   };
 
   // --- 6. Intelligent Conflict-Free Timetable Generation ---
   const generateAndSaveTimetable = () => {
+    // Strict RBAC Guard: Only ADMIN or TIMETABLE_CREATOR can generate timetables
+    if (!canManageTimetables) {
+      return {
+        success: false,
+        conflictsCount: 0,
+        message: 'Access Denied: Only ADMIN or TIMETABLE_CREATOR roles are permitted to generate or modify timetables.',
+      };
+    }
+
     setIsGenerating(true);
     try {
       const { slots, conflicts: generatedConflicts } = generateTimetableFromRules(
@@ -764,13 +910,24 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const saveTimetable = (slots: TimetableSlot[]) => {
+    if (!canManageTimetables) {
+      console.warn('Access Denied: Only ADMIN or TIMETABLE_CREATOR can save timetables.');
+      return;
+    }
     setTimetableSlots(slots);
   };
 
   const clearTimetable = () => {
+    if (!canManageTimetables) {
+      console.warn('Access Denied: Only ADMIN or TIMETABLE_CREATOR can clear timetables.');
+      return;
+    }
     setTimetableSlots([]);
     setConflicts([]);
     localStorage.removeItem('tmssl_timetable');
+    if (tenantSchoolId) {
+      localStorage.removeItem(`tmssl_timetable_${tenantSchoolId}`);
+    }
   };
 
   // Compatibility operations
@@ -1029,6 +1186,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         updateProfile,
         updateUserProfile: updateProfile,
         switchRole,
+        tenantSchoolId,
+        canManageTimetables,
+        canEditTimetable,
+        canGenerateTimetable,
+        isClassTeacherRole,
+        assignedClassName,
         schoolSettings,
         saveSchoolSettings,
         bellSchedule,

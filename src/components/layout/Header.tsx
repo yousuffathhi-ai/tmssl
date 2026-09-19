@@ -19,12 +19,14 @@ interface HeaderProps {
 export const Header: React.FC<HeaderProps> = ({ currentTab, onSelectTab }) => {
   const {
     currentUser,
+    switchRole,
     theme,
     toggleTheme,
     seedSampleSchoolData,
     resetAllDataToEmpty,
     classesSections,
     schoolSettings,
+    tenantSchoolId,
   } = useApp();
 
   // Dynamic greeting based on current local time
@@ -147,18 +149,29 @@ export const Header: React.FC<HeaderProps> = ({ currentTab, onSelectTab }) => {
           {theme === 'dark' ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-slate-600" />}
         </button>
 
-        {/* Role Badge */}
-        <span
-          className={`hidden sm:inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold capitalize ${
-            currentUser?.role === 'admin'
-              ? 'bg-purple-100 text-purple-700 dark:bg-purple-950 dark:text-purple-300 border border-purple-300 dark:border-purple-800'
-              : currentUser?.role === 'teacher'
-              ? 'bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300 border border-blue-300 dark:border-blue-800'
-              : 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border border-slate-300 dark:border-slate-700'
-          }`}
-        >
-          {currentUser?.role === 'admin' ? 'Principal' : currentUser?.role || 'Teacher'}
-        </span>
+        {/* Active RBAC Role Badge & Tester */}
+        <div className="flex items-center gap-1.5">
+          <label htmlFor="rbac-role-select" className="sr-only">Active Role</label>
+          <div className="relative">
+            <select
+              id="rbac-role-select"
+              value={currentUser?.role || 'teacher'}
+              onChange={(e) => switchRole(e.target.value as any)}
+              title="Active Role (Switch to verify RBAC & Teacher Read-Only vs Admin Controls)"
+              className={`text-xs font-black px-2.5 py-1.5 rounded-full border cursor-pointer focus:outline-none transition ${
+                currentUser?.role === 'admin'
+                  ? 'bg-purple-100 dark:bg-purple-950/80 text-purple-800 dark:text-purple-200 border-purple-300 dark:border-purple-800'
+                  : currentUser?.role === 'timetable_creator'
+                  ? 'bg-amber-100 dark:bg-amber-950/80 text-amber-800 dark:text-amber-200 border-amber-300 dark:border-amber-800'
+                  : 'bg-blue-100 dark:bg-blue-950/80 text-blue-800 dark:text-blue-200 border-blue-300 dark:border-blue-800'
+              }`}
+            >
+              <option value="admin">Principal (Admin)</option>
+              <option value="timetable_creator">Timetable Creator</option>
+              <option value="teacher">Teacher (Read-Only)</option>
+            </select>
+          </div>
+        </div>
       </div>
     </header>
   );

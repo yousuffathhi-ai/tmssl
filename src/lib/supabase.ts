@@ -128,6 +128,46 @@ export const localDb = {
     return getStorage<T[]>(tableName, []);
   },
 
+  // Multi-tenant school-isolated storage engine
+  getTenantRows<T>(tableName: string, tenantSchoolId: string): T[] {
+    const allRows = getStorage<any[]>(`${tableName}_${tenantSchoolId}`, []);
+    return allRows;
+  },
+
+  setTenantRows<T>(tableName: string, tenantSchoolId: string, rows: T[]): void {
+    setStorage(`${tableName}_${tenantSchoolId}`, rows);
+  },
+
+  insertTenantRow<T extends { id?: string }>(tableName: string, tenantSchoolId: string, row: T): T {
+    const allRows = getStorage<any[]>(`${tableName}_${tenantSchoolId}`, []);
+    const newRow = {
+      ...row,
+      id: row.id || `row_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`,
+      school_id: tenantSchoolId,
+      created_at: (row as any).created_at || new Date().toISOString(),
+    };
+    allRows.push(newRow);
+    setStorage(`${tableName}_${tenantSchoolId}`, allRows);
+    return newRow as T;
+  },
+
+  deleteTenantRow(tableName: string, tenantSchoolId: string, rowId: string): void {
+    const allRows = getStorage<any[]>(`${tableName}_${tenantSchoolId}`, []);
+    const filtered = allRows.filter((r) => r.id !== rowId);
+    setStorage(`${tableName}_${tenantSchoolId}`, filtered);
+  },
+
+  updateTenantRow<T extends { id: string }>(tableName: string, tenantSchoolId: string, updatedRow: T): void {
+    const allRows = getStorage<any[]>(`${tableName}_${tenantSchoolId}`, []);
+    const index = allRows.findIndex((r) => r.id === updatedRow.id);
+    if (index >= 0) {
+      allRows[index] = { ...allRows[index], ...updatedRow, updated_at: new Date().toISOString() };
+    } else {
+      allRows.push(updatedRow);
+    }
+    setStorage(`${tableName}_${tenantSchoolId}`, allRows);
+  },
+
   insertPublicRow<T extends { id?: string }>(tableName: string, row: T): T {
     const allRows = getStorage<any[]>(tableName, []);
     const newRow = {
@@ -238,6 +278,13 @@ export async function upsertProfileToDb(profile: {
 // 1. COMMUNITY POSTS (community_posts)
 // ==========================================
 
+export interface CommunityFilterOptions {
+  school_id?: string;
+  school_name?: string;
+  userSubjects?: string[];
+  role?: string;
+}
+
 const INITIAL_COMMUNITY_POSTS: CommunityPostRecord[] = [
   {
     id: 'post_1',
@@ -245,9 +292,12 @@ const INITIAL_COMMUNITY_POSTS: CommunityPostRecord[] = [
     author_name: 'Mrs. Kumudini Jayawardena',
     author_role: 'Senior Science & Maths Teacher',
     school_name: 'Visakha Vidyalaya, Colombo 05',
+    school_id: 'school_visakha_colombo_05',
     title: 'Formative Assessment Strategies for 40-Minute Periods',
     content: 'How do colleagues balance 40-minute periods with individual formative assessment logs in Grades 9 and 10? Sharing our 5-minute exit ticket method which works well with continuous evaluation standards.',
     category: 'General',
+    subject: 'General',
+    is_public: true,
     created_at: new Date(Date.now() - 3600000 * 36).toISOString(),
     likes_count: 14,
     liked_by: [],
@@ -258,9 +308,12 @@ const INITIAL_COMMUNITY_POSTS: CommunityPostRecord[] = [
     author_name: 'Mr. K. Sivalingam',
     author_role: 'Master Teacher (Physics)',
     school_name: 'Jaffna Hindu College, Jaffna',
+    school_id: 'school_jaffna_hindu_college',
     title: 'Grade 11 Chemistry Electrolysis Simulation Guide',
     content: 'For schools without full laboratory reagents for electrolysis of copper sulphate, the NIE PhET simulations are exceptionally clear for student understanding and diagram questions.',
     category: 'Subject Discussions',
+    subject: 'Science',
+    is_public: false,
     created_at: new Date(Date.now() - 3600000 * 20).toISOString(),
     likes_count: 21,
     liked_by: [],
@@ -271,9 +324,12 @@ const INITIAL_COMMUNITY_POSTS: CommunityPostRecord[] = [
     author_name: 'Mr. Mohamed Rizwan',
     author_role: 'Sectional Head (Mathematics)',
     school_name: 'Zahira National College, Gampola',
+    school_id: 'school_zahira_national_college',
     title: '2026 G.C.E. O/L Model Mathematics Unit Test Paper',
     content: 'Attached unit revision paper covering quadratic equations, sets and probability tailored for 2nd term preparations. Complete marking scheme included.',
-    category: 'Question Papers',
+    category: 'Subject Discussions',
+    subject: 'Mathematics',
+    is_public: false,
     attachment_name: 'grade10-maths-model-paper-term2.pdf',
     attachment_url: '#grade10-maths-model-paper-term2.pdf',
     created_at: new Date(Date.now() - 3600000 * 12).toISOString(),
@@ -286,16 +342,20 @@ const INITIAL_COMMUNITY_POSTS: CommunityPostRecord[] = [
     author_name: 'Dr. Nihal Ranasinghe',
     author_role: 'Principal / Administrator',
     school_name: 'Royal College, Colombo 07',
+    school_id: 'school_royal_college_colombo',
     title: 'Relief Period Management under the 8-Period Framework',
     content: 'Colleagues asking about maximum continuous periods when assigned relief: Circular 2024/09 specifies no teacher should exceed 5 continuous periods without an intervening break.',
     category: 'School Circulars',
+    is_public: true,
     created_at: new Date(Date.now() - 3600000 * 4).toISOString(),
     likes_count: 27,
     liked_by: [],
   },
 ];
 
-export async function fetchCommunityPostsDb(): Promise<CommunityPostRecord[]> {
+export async function fetchCommunityPostsDb(filter?: CommunityFilterOptions): Promise<CommunityPostRecord[]> {
+  let allPosts: CommunityPostRecord[] = [];
+
   if (isSupabaseConfigured && supabase) {
     try {
       const { data, error } = await supabase
@@ -303,20 +363,54 @@ export async function fetchCommunityPostsDb(): Promise<CommunityPostRecord[]> {
         .select('*')
         .order('created_at', { ascending: false });
       if (data && !error && data.length > 0) {
-        return data as CommunityPostRecord[];
+        allPosts = data as CommunityPostRecord[];
       }
     } catch (err) {
       console.warn('Error fetching community_posts from Supabase:', err);
     }
   }
 
-  const localPosts = localDb.getAllRows<CommunityPostRecord>('community_posts');
-  if (localPosts.length === 0) {
-    // Seed initial posts
-    INITIAL_COMMUNITY_POSTS.forEach((p) => localDb.insertPublicRow('community_posts', p));
-    return INITIAL_COMMUNITY_POSTS;
+  if (allPosts.length === 0) {
+    const localPosts = localDb.getAllRows<CommunityPostRecord>('community_posts');
+    if (localPosts.length === 0) {
+      INITIAL_COMMUNITY_POSTS.forEach((p) => localDb.insertPublicRow('community_posts', p));
+      allPosts = INITIAL_COMMUNITY_POSTS;
+    } else {
+      allPosts = localPosts;
+    }
   }
-  return localPosts;
+
+  // Multi-Tenant and Subject Privacy Filter (Application Level Guard)
+  if (!filter) return allPosts;
+
+  return allPosts.filter((post) => {
+    // 1. General & Question Papers: Accessible to national educators
+    if (post.category === 'General' || post.category === 'Question Papers' || post.is_public) {
+      return true;
+    }
+
+    // 2. School Circulars: Scoped strictly to the teacher's registered school
+    if (post.category === 'School Circulars') {
+      if (!filter.school_name && !filter.school_id) return true;
+      const schoolMatch =
+        (filter.school_id && post.school_id === filter.school_id) ||
+        (filter.school_name && post.school_name &&
+          (post.school_name.toLowerCase().includes(filter.school_name.toLowerCase()) ||
+           filter.school_name.toLowerCase().includes(post.school_name.toLowerCase())));
+      return Boolean(schoolMatch);
+    }
+
+    // 3. Subject Discussions: Strictly filtered by user's assigned subjects
+    if (post.category === 'Subject Discussions') {
+      if (!filter.userSubjects || filter.userSubjects.length === 0) return true;
+      if (!post.subject) return true;
+      const normalizedSubjs = filter.userSubjects.map((s) => s.toLowerCase().trim());
+      const postSubj = post.subject.toLowerCase().trim();
+      return normalizedSubjs.some((s) => postSubj.includes(s) || s.includes(postSubj));
+    }
+
+    return true;
+  });
 }
 
 export async function insertCommunityPostDb(post: Omit<CommunityPostRecord, 'id' | 'created_at'>): Promise<CommunityPostRecord> {
@@ -360,6 +454,9 @@ const INITIAL_COMMUNITY_RESOURCES: CommunityResourceRecord[] = [
     user_id: 'usr_kumudini',
     author_name: 'Mrs. Kumudini Jayawardena',
     school_name: 'Visakha Vidyalaya, Colombo 05',
+    school_id: 'school_visakha_colombo_05',
+    subject: 'Mathematics',
+    is_public: true,
     title: 'Grade 9 Algebra & Linear Equations Revision Worksheet',
     resource_type: 'Worksheets',
     file_url: '#grade9-algebra-worksheet.pdf',
@@ -372,6 +469,9 @@ const INITIAL_COMMUNITY_RESOURCES: CommunityResourceRecord[] = [
     user_id: 'usr_sivalingam',
     author_name: 'Mr. K. Sivalingam',
     school_name: 'Jaffna Hindu College, Jaffna',
+    school_id: 'school_jaffna_hindu_college',
+    subject: 'Science',
+    is_public: true,
     title: 'G.C.E. O/L Science Past Paper Analysis & Marking Scheme (2020-2025)',
     resource_type: 'Question Papers',
     file_url: '#ol-science-past-papers.pdf',
@@ -384,6 +484,9 @@ const INITIAL_COMMUNITY_RESOURCES: CommunityResourceRecord[] = [
     user_id: 'usr_wickramasinghe',
     author_name: 'Mrs. Anoma Wickramasinghe',
     school_name: 'Mahamaya Girls\' College, Kandy',
+    school_id: 'school_mahamaya_kandy',
+    subject: 'History',
+    is_public: true,
     title: 'Grade 10 Sri Lankan History Comprehensive Unit Notes & Timeline',
     resource_type: 'Notes & PDFs',
     file_url: '#grade10-history-notes.pdf',
@@ -396,6 +499,9 @@ const INITIAL_COMMUNITY_RESOURCES: CommunityResourceRecord[] = [
     user_id: 'usr_haniffa',
     author_name: 'Mrs. Farzana Haniffa',
     school_name: 'Al-Azhar Central College, Akkaraipattu',
+    school_id: 'school_al_azhar_akkaraipattu',
+    subject: 'English',
+    is_public: true,
     title: 'Grade 11 English Language Grammar & Essay Practice Booklet',
     resource_type: 'Worksheets',
     file_url: '#grade11-english-grammar.pdf',
@@ -405,7 +511,9 @@ const INITIAL_COMMUNITY_RESOURCES: CommunityResourceRecord[] = [
   },
 ];
 
-export async function fetchCommunityResourcesDb(): Promise<CommunityResourceRecord[]> {
+export async function fetchCommunityResourcesDb(filter?: CommunityFilterOptions): Promise<CommunityResourceRecord[]> {
+  let allResources: CommunityResourceRecord[] = [];
+
   if (isSupabaseConfigured && supabase) {
     try {
       const { data, error } = await supabase
@@ -413,19 +521,38 @@ export async function fetchCommunityResourcesDb(): Promise<CommunityResourceReco
         .select('*')
         .order('created_at', { ascending: false });
       if (data && !error && data.length > 0) {
-        return data as CommunityResourceRecord[];
+        allResources = data as CommunityResourceRecord[];
       }
     } catch (err) {
       console.warn('Error fetching community_resources from Supabase:', err);
     }
   }
 
-  const localRes = localDb.getAllRows<CommunityResourceRecord>('community_resources');
-  if (localRes.length === 0) {
-    INITIAL_COMMUNITY_RESOURCES.forEach((r) => localDb.insertPublicRow('community_resources', r));
-    return INITIAL_COMMUNITY_RESOURCES;
+  if (allResources.length === 0) {
+    const localRes = localDb.getAllRows<CommunityResourceRecord>('community_resources');
+    if (localRes.length === 0) {
+      INITIAL_COMMUNITY_RESOURCES.forEach((r) => localDb.insertPublicRow('community_resources', r));
+      allResources = INITIAL_COMMUNITY_RESOURCES;
+    } else {
+      allResources = localRes;
+    }
   }
-  return localRes;
+
+  if (!filter) return allResources;
+
+  return allResources.filter((r) => {
+    // If resource is public, all can view
+    if (r.is_public) return true;
+    // Same school
+    if (filter.school_id && r.school_id === filter.school_id) return true;
+    // Subject matching
+    if (filter.userSubjects && filter.userSubjects.length > 0 && r.subject) {
+      const normalizedSubjs = filter.userSubjects.map((s) => s.toLowerCase().trim());
+      const resSubj = r.subject.toLowerCase().trim();
+      return normalizedSubjs.some((s) => resSubj.includes(s) || s.includes(resSubj));
+    }
+    return true;
+  });
 }
 
 export async function insertCommunityResourceDb(
@@ -506,7 +633,9 @@ const INITIAL_ANNOUNCEMENTS: AnnouncementRecord[] = [
   },
 ];
 
-export async function fetchAnnouncementsDb(): Promise<AnnouncementRecord[]> {
+export async function fetchAnnouncementsDb(filter?: CommunityFilterOptions): Promise<AnnouncementRecord[]> {
+  let allAnn: AnnouncementRecord[] = [];
+
   if (isSupabaseConfigured && supabase) {
     try {
       const { data, error } = await supabase
@@ -514,19 +643,32 @@ export async function fetchAnnouncementsDb(): Promise<AnnouncementRecord[]> {
         .select('*')
         .order('date', { ascending: false });
       if (data && !error && data.length > 0) {
-        return data as AnnouncementRecord[];
+        allAnn = data as AnnouncementRecord[];
       }
     } catch (err) {
       console.warn('Error fetching announcements from Supabase:', err);
     }
   }
 
-  const localAnn = localDb.getAllRows<AnnouncementRecord>('announcements');
-  if (localAnn.length === 0) {
-    INITIAL_ANNOUNCEMENTS.forEach((a) => localDb.insertPublicRow('announcements', a));
-    return INITIAL_ANNOUNCEMENTS;
+  if (allAnn.length === 0) {
+    const localAnn = localDb.getAllRows<AnnouncementRecord>('announcements');
+    if (localAnn.length === 0) {
+      INITIAL_ANNOUNCEMENTS.forEach((a) => localDb.insertPublicRow('announcements', a));
+      allAnn = INITIAL_ANNOUNCEMENTS;
+    } else {
+      allAnn = localAnn;
+    }
   }
-  return localAnn;
+
+  if (!filter) return allAnn;
+
+  return allAnn.filter((a) => {
+    // Public circulars and Ministry announcements are visible across schools
+    if (a.is_public !== false) return true;
+    if (!a.school_id) return true;
+    if (filter.school_id && a.school_id === filter.school_id) return true;
+    return false;
+  });
 }
 
 export async function insertAnnouncementDb(ann: Omit<AnnouncementRecord, 'id'>): Promise<AnnouncementRecord> {

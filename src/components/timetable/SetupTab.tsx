@@ -12,10 +12,12 @@ import {
   Coffee,
   ShieldAlert,
   Zap,
+  Lock,
 } from 'lucide-react';
 
 export const SetupTab: React.FC = () => {
   const {
+    canManageTimetables,
     bellSchedule,
     saveBellSchedule,
     classesSections,
@@ -173,6 +175,28 @@ export const SetupTab: React.FC = () => {
 
   return (
     <div className="space-y-6">
+      {/* RBAC Teacher Notice Banner */}
+      {!canManageTimetables && (
+        <div className="p-4 rounded-xl bg-amber-50/90 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-lg bg-amber-500 text-white flex items-center justify-center shrink-0">
+              <Lock className="w-4 h-4" />
+            </div>
+            <div>
+              <p className="text-xs font-bold text-amber-900 dark:text-amber-200">
+                🔒 Read-Only Institutional Configuration
+              </p>
+              <p className="text-[11px] text-amber-800 dark:text-amber-300">
+                As a Teacher, institutional setup (Bell Schedule, Class Sections, Staff Allocations, and Curriculum Rules) is managed exclusively by the School Principal or Timetable Creator.
+              </p>
+            </div>
+          </div>
+          <span className="self-start sm:self-center px-2.5 py-1 rounded-md bg-amber-200 dark:bg-amber-900/60 text-[10px] font-black text-amber-900 dark:text-amber-200 uppercase tracking-wider shrink-0">
+            Read-Only
+          </span>
+        </div>
+      )}
+
       {/* Top Banner Notice */}
       <div className="bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-900/60 rounded-xl p-4 flex items-center justify-between">
         <div className="flex items-center gap-3">
