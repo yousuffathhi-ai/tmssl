@@ -4,6 +4,11 @@ import { calculateSriLankanGrade, getGradeColorClass, SRI_LANKA_CURRICULUM_SUBJE
 import { Student, MarkRecord } from '../../types';
 import { EmptyState } from '../common/EmptyState';
 import {
+  exportMarksAnalysisToPPTX,
+  exportMarksReportToPDF,
+  exportStudentReportCardToPDF,
+} from '../../utils/exportUtils';
+import {
   Award,
   Plus,
   Trash2,
@@ -16,6 +21,9 @@ import {
   TrendingUp,
   AlertCircle,
   Sparkles,
+  Presentation,
+  Download,
+  FileDown,
 } from 'lucide-react';
 import {
   BarChart,
@@ -29,7 +37,7 @@ import {
 } from 'recharts';
 
 export const MarksModule: React.FC = () => {
-  const { currentUser, classes, students, addStudent, deleteStudent, markRecords, saveMarkRecord } = useApp();
+  const { currentUser, classes, students, addStudent, deleteStudent, markRecords, saveMarkRecord, t } = useApp();
 
   const [activeTab, setActiveTab] = useState<'grid' | 'analytics' | 'reportCard' | 'students'>('grid');
   const [selectedClassId, setSelectedClassId] = useState<string>(classes[0]?.id || '');
@@ -157,6 +165,49 @@ export const MarksModule: React.FC = () => {
   const selectedReportStudent = students.find(s => s.id === selectedReportStudentId) || classStudents[0];
   const selectedReportResult = rankedResults.find(r => r.student.id === selectedReportStudent?.id);
 
+  // 10-Slide PPTX Presentation Export
+  const handleExportPPTX = () => {
+    const currentClass = classes.find(c => c.id === selectedClassId);
+    exportMarksAnalysisToPPTX({
+      schoolName: currentUser?.schoolName || 'Sri Lankan National School',
+      className: currentClass?.name || 'Grade 10-A',
+      term: selectedTerm,
+      teacherName: currentUser?.name || 'Subject Teacher',
+      results: rankedResults,
+      subjectsList: defaultSubjects,
+    });
+  };
+
+  // Class Term Performance Summary PDF Export
+  const handleExportPDF = () => {
+    const currentClass = classes.find(c => c.id === selectedClassId);
+    exportMarksReportToPDF({
+      schoolName: currentUser?.schoolName || 'Sri Lankan National School',
+      className: currentClass?.name || 'Grade 10-A',
+      term: selectedTerm,
+      teacherName: currentUser?.name || 'Class Teacher',
+      results: rankedResults,
+      subjectsList: defaultSubjects,
+    });
+  };
+
+  // Individual Student Report Card PDF Export
+  const handleExportReportCardPDF = () => {
+    if (!selectedReportStudent || !selectedReportResult) return;
+    const currentClass = classes.find(c => c.id === selectedClassId);
+    exportStudentReportCardToPDF({
+      schoolName: currentUser?.schoolName || 'Sri Lankan National School',
+      student: selectedReportStudent,
+      className: currentClass?.name || 'Grade 10-A',
+      term: selectedTerm,
+      subjects: selectedReportResult.subjects,
+      totalMarks: selectedReportResult.totalMarks,
+      average: selectedReportResult.average,
+      rank: selectedReportResult.rank,
+      teacherName: currentUser?.name || 'Class Teacher',
+    });
+  };
+
   return (
     <div className="space-y-6 max-w-7xl mx-auto pb-16">
       {/* Header & Controls */}
@@ -258,7 +309,31 @@ export const MarksModule: React.FC = () => {
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          {classStudents.length > 0 && (
+            <>
+              {/* 10-Slide PPTX Presentation Export */}
+              <button
+                onClick={handleExportPPTX}
+                title="Generate & download 10-slide PowerPoint presentation (.pptx) matching Sri Lankan Education blue/navy theme"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-700 hover:bg-blue-800 text-white text-xs font-bold shadow-xs transition"
+              >
+                <Presentation className="w-3.5 h-3.5" />
+                <span>{t('exportPptx')} (10 Slides)</span>
+              </button>
+
+              {/* Class Summary PDF Export */}
+              <button
+                onClick={handleExportPDF}
+                title="Download Class Academic Marks & Diagnostic Summary Report as PDF"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-xs font-bold text-slate-700 dark:text-slate-300 transition"
+              >
+                <FileDown className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
+                <span>{t('downloadPdf')}</span>
+              </button>
+            </>
+          )}
+
           <button
             onClick={() => setShowAddStudentModal(true)}
             disabled={classes.length === 0}
@@ -589,13 +664,24 @@ export const MarksModule: React.FC = () => {
               </select>
             </div>
 
-            <button
-              onClick={() => window.print()}
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-xs transition"
-            >
-              <Printer className="w-4 h-4" />
-              <span>Print Official Report Card</span>
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={handleExportReportCardPDF}
+                title="Download this student's official progress report card as PDF"
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs font-bold transition shadow-xs"
+              >
+                <Download className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
+                <span>{t('downloadPdf')}</span>
+              </button>
+
+              <button
+                onClick={() => window.print()}
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-xs transition"
+              >
+                <Printer className="w-4 h-4" />
+                <span>Print Official Report Card</span>
+              </button>
+            </div>
           </div>
 
           {!selectedReportStudent ? (

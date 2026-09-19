@@ -1,4 +1,5 @@
 import React from 'react';
+import { useApp } from '../../context/AppContext';
 import { LayoutDashboard, CalendarDays, Sparkles, Award, CalendarCheck, Users2 } from 'lucide-react';
 
 interface BottomNavProps {
@@ -7,13 +8,15 @@ interface BottomNavProps {
 }
 
 export const BottomNav: React.FC<BottomNavProps> = ({ currentTab, onSelectTab }) => {
+  const { t } = useApp();
+
   const items = [
-    { id: 'dashboard', label: 'Home', icon: LayoutDashboard },
-    { id: 'timetable', label: 'Schedule', icon: CalendarDays },
-    { id: 'lesson-plan', label: 'AI Plan', icon: Sparkles },
-    { id: 'marks', label: 'Marks', icon: Award },
-    { id: 'leaves', label: 'Leaves', icon: CalendarCheck },
-    { id: 'community', label: 'Hub', icon: Users2 },
+    { id: 'dashboard', label: t('dashboard'), icon: LayoutDashboard },
+    { id: 'timetable', label: t('timetable'), icon: CalendarDays },
+    { id: 'lesson-plan', label: t('lesson-plan'), icon: Sparkles },
+    { id: 'marks', label: t('marks'), icon: Award },
+    { id: 'leaves', label: t('leaves'), icon: CalendarCheck },
+    { id: 'community', label: t('community'), icon: Users2 },
   ];
 
   return (

@@ -3,6 +3,7 @@ import { useApp } from '../../context/AppContext';
 import { SRI_LANKA_SUBJECT_LIST } from '../../data/sriLankaEduData';
 import { LessonPlan } from '../../types';
 import { EmptyState } from '../common/EmptyState';
+import { exportLessonPlanToPDF } from '../../utils/exportUtils';
 import {
   Sparkles,
   BookOpen,
@@ -18,10 +19,11 @@ import {
   FileText,
   Copy,
   Plus,
+  Download,
 } from 'lucide-react';
 
 export const LessonPlanModule: React.FC = () => {
-  const { currentUser, lessonPlans, saveLessonPlan, deleteLessonPlan } = useApp();
+  const { currentUser, lessonPlans, saveLessonPlan, deleteLessonPlan, t } = useApp();
 
   const [activeTab, setActiveTab] = useState<'generator' | 'archive'>('generator');
   const [generating, setGenerating] = useState(false);
@@ -355,6 +357,14 @@ export const LessonPlanModule: React.FC = () => {
 
                   <div className="flex items-center gap-2 no-print">
                     <button
+                      onClick={() => currentPlan && exportLessonPlanToPDF(currentPlan, currentUser?.schoolName)}
+                      className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl border border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs font-bold transition shadow-xs"
+                      title="Download Official NIE Lesson Plan as PDF"
+                    >
+                      <Download className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
+                      <span>{t('downloadPdf')}</span>
+                    </button>
+                    <button
                       onClick={handleSaveCurrentPlan}
                       className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-xs transition"
                     >
@@ -363,6 +373,7 @@ export const LessonPlanModule: React.FC = () => {
                     </button>
                     <button
                       onClick={handlePrint}
+                      title="Print Lesson Note"
                       className="p-1.5 rounded-xl border border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300"
                     >
                       <Printer className="w-4 h-4" />
@@ -580,15 +591,24 @@ export const LessonPlanModule: React.FC = () => {
                       className="text-xs font-bold text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1"
                     >
                       <Eye className="w-3.5 h-3.5" />
-                      <span>View & Print</span>
+                      <span>View & Edit</span>
                     </button>
-                    <button
-                      onClick={() => deleteLessonPlan(plan.id)}
-                      className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40 transition"
-                      title="Delete plan"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={() => exportLessonPlanToPDF(plan, currentUser?.schoolName)}
+                        className="p-1.5 rounded-lg text-slate-500 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950/40 transition"
+                        title="Download Lesson Plan as PDF"
+                      >
+                        <Download className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => deleteLessonPlan(plan.id)}
+                        className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40 transition"
+                        title="Delete plan"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
                   </div>
                 </div>
               ))}

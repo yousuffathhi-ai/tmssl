@@ -24,12 +24,16 @@ import {
 } from '../types';
 import { generateTimetableFromRules } from '../utils/timetableGenerator';
 import { supabase, isSupabaseConfigured, localDb, fetchProfileFromDb, upsertProfileToDb } from '../lib/supabase';
+import { AppLanguage, getTranslation } from '../utils/i18n';
 
 interface AppContextType {
   currentUser: UserProfile | null;
   isAuthenticated: boolean;
   theme: 'light' | 'dark';
   toggleTheme: () => void;
+  language: AppLanguage;
+  setLanguage: (lang: AppLanguage) => void;
+  t: (key: string) => string;
   login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
   register: (data: Partial<UserProfile> & { password: string }) => Promise<{ success: boolean; error?: string }>;
   logout: () => void;
@@ -140,7 +144,7 @@ const DEFAULT_SCHOOL_SETTINGS: SchoolSettings = {
 };
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  // Theme state
+  // Theme state (persistent in localStorage)
   const [theme, setTheme] = useState<'light' | 'dark'>(() => {
     return (localStorage.getItem('tmssl_theme') as 'light' | 'dark') || 'light';
   });
@@ -155,6 +159,22 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   }, [theme]);
 
   const toggleTheme = () => setTheme(prev => (prev === 'light' ? 'dark' : 'light'));
+
+  // Internationalization (i18n: English, Sinhala, Tamil)
+  const [language, setLanguage] = useState<AppLanguage>(() => {
+    const saved = localStorage.getItem('tmssl_language');
+    if (saved === 'si' || saved === 'ta' || saved === 'en') {
+      return saved as AppLanguage;
+    }
+    return 'en';
+  });
+
+  useEffect(() => {
+    localStorage.setItem('tmssl_language', language);
+    document.documentElement.lang = language;
+  }, [language]);
+
+  const t = (key: string) => getTranslation(key, language);
 
   // User & Auth State (Starts NULL / Unauthenticated)
   const [currentUser, setCurrentUser] = useState<UserProfile | null>(() => {
@@ -1180,6 +1200,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         isAuthenticated: !!currentUser,
         theme,
         toggleTheme,
+        language,
+        setLanguage,
+        t,
         login,
         register,
         logout,

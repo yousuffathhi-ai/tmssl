@@ -9,6 +9,7 @@ import {
   Calendar,
   Sparkles,
   User as UserIcon,
+  Globe,
 } from 'lucide-react';
 
 interface HeaderProps {
@@ -22,6 +23,9 @@ export const Header: React.FC<HeaderProps> = ({ currentTab, onSelectTab }) => {
     switchRole,
     theme,
     toggleTheme,
+    language,
+    setLanguage,
+    t,
     seedSampleSchoolData,
     resetAllDataToEmpty,
     classesSections,
@@ -140,13 +144,35 @@ export const Header: React.FC<HeaderProps> = ({ currentTab, onSelectTab }) => {
         {/* In-App PWA Install Prompt */}
         <PWAInstallButton />
 
-        {/* Theme Toggle */}
+        {/* Language Switcher (i18n: English, Sinhala, Tamil) */}
+        <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800/80 p-1 rounded-xl border border-slate-200 dark:border-slate-700/80">
+          <Globe className="w-3.5 h-3.5 text-slate-500 ml-1 shrink-0" />
+          <select
+            id="language-select"
+            value={language}
+            onChange={(e) => setLanguage(e.target.value as any)}
+            title="Switch Language / භාෂාව මාරු කරන්න / மொழியை மாற்றவும்"
+            className="text-xs font-bold bg-transparent text-slate-700 dark:text-slate-200 border-none outline-none cursor-pointer pr-1"
+          >
+            <option value="en" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white">English (EN)</option>
+            <option value="si" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white">සිංහල (Sinhala)</option>
+            <option value="ta" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white">தமிழ் (Tamil)</option>
+          </select>
+        </div>
+
+        {/* Persistent Theme Toggle (Saved in localStorage) */}
         <button
+          id="theme-toggle-btn"
           onClick={toggleTheme}
-          title={theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
-          className="p-2 rounded-lg text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800 transition"
+          title={theme === 'dark' ? t('switchToLight') : t('switchToDark')}
+          aria-label={theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+          className="p-2 rounded-xl text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700/80 transition-all cursor-pointer shadow-xs active:scale-95"
         >
-          {theme === 'dark' ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-slate-600" />}
+          {theme === 'dark' ? (
+            <Sun className="w-4 h-4 text-amber-400 animate-in fade-in zoom-in duration-200" />
+          ) : (
+            <Moon className="w-4 h-4 text-slate-600 animate-in fade-in zoom-in duration-200" />
+          )}
         </button>
 
         {/* Active RBAC Role Badge & Tester */}

@@ -20,16 +20,16 @@ interface SidebarProps {
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({ currentTab, onSelectTab }) => {
-  const { currentUser, logout, switchRole } = useApp();
+  const { currentUser, logout, switchRole, t } = useApp();
 
   const navItems = [
-    { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, badge: '' },
-    { id: 'timetable', label: 'Timetable Maker', icon: CalendarDays, badge: 'ASC' },
-    { id: 'lesson-plan', label: 'AI Lesson Plan', icon: Sparkles, badge: 'NIE' },
-    { id: 'marks', label: 'Marks Analyser', icon: Award, badge: 'Term 1-3' },
-    { id: 'leaves', label: 'My Leaves & Attendance', icon: CalendarCheck, badge: '' },
-    { id: 'community', label: 'Community Hub', icon: Users2, badge: '' },
-    { id: 'profile', label: 'Teacher Profile', icon: UserCheck, badge: '' },
+    { id: 'dashboard', label: t('dashboard'), icon: LayoutDashboard, badge: '' },
+    { id: 'timetable', label: t('timetable'), icon: CalendarDays, badge: 'ASC' },
+    { id: 'lesson-plan', label: t('lesson-plan'), icon: Sparkles, badge: 'NIE' },
+    { id: 'marks', label: t('marks'), icon: Award, badge: 'Term 1-3' },
+    { id: 'leaves', label: t('leaves'), icon: CalendarCheck, badge: '' },
+    { id: 'community', label: t('community'), icon: Users2, badge: '' },
+    { id: 'profile', label: t('profile'), icon: UserCheck, badge: '' },
   ];
 
   return (
